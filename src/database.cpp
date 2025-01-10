@@ -1,11 +1,35 @@
 #include "database.hpp"
 #include <iostream>
+#include <fstream>
+#include <cstdio>
 
 bool Database::connect()
 {
+    // Read db.txt file
+    std::string connLine;
     try
     {
-        pqxx::connection *conn = new pqxx::connection{"postgresql://postgres:password@localhost/mcpinger"};
+        std::ifstream file("db.txt");
+        if (!file.good())
+        {
+            std::cout << "Failed to open db.txt" << std::endl;
+            return false;
+        }
+
+        if (!std::getline(file, connLine)) {
+            std::cout << "Failed to read the database URL from db.txt!" << std::endl;
+            return false;
+        }
+    }
+    catch (std::exception &ex)
+    {
+        std::cout << "Error occurred while reading db.txt: " << ex.what() << std::endl;
+        return false;
+    }
+
+    try
+    {
+        pqxx::connection *conn = new pqxx::connection{connLine};
 
         this->conn = conn;
         return true;
