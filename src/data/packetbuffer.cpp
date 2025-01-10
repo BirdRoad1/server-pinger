@@ -1,179 +1,154 @@
-#pragma once
-#include <vector>
-#include <stdexcept>
+#include "packetbuffer.hpp"
 #include <arpa/inet.h> // For htons()
 #include <iostream>
-#include "../exception/net_exception.cpp"
+#include <stdexcept>
+#include "../exception/net_exception.hpp"
 
-class PacketBuffer
+unsigned char PacketBuffer::readByte()
 {
-
-private:
-    int fd = -1;
-    std::vector<unsigned char> vec;
-    size_t cursor = 0;
-    static const int SEGMENT_BITS = 0x7F;
-    static const int CONTINUE_BIT = 0x80;
-
-public:
-    PacketBuffer(int fd)
+    if (fd < 0)
     {
-        this->fd = fd;
-    }
-
-    PacketBuffer() {}
-
-    unsigned char readByte()
-    {
-        if (fd < 0)
+        if (cursor >= vec.size())
         {
-            if (cursor >= vec.size())
-            {
-                throw net_exception("Read failed!");
-            }
-
-            unsigned char byte = vec.at(cursor);
-            cursor++;
-
-            return byte;
-        }
-        else
-        {
-            unsigned char bytes[1];            
-
-            int len = recv(fd, bytes, sizeof(bytes), 0);
-            if (len != 1)
-            {
-                throw net_exception("Failed to read byte from socket");
-            }
-
-            return bytes[0];
-        }
-    }
-
-    void writeByte(unsigned char byte)
-    {
-        if (fd < 0)
-        {
-            vec.push_back(byte);
-            cursor++;
-        }
-        else
-        {
-            unsigned char bytes[1] = {byte};
-            int len = send(fd, bytes, sizeof(bytes), 0);
-            if (len != 1)
-            {
-                throw net_exception("Failed to write byte to socket");
-            }
-        }
-    }
-
-    PacketBuffer *writeVarInt(int value)
-    {
-        while (true)
-        {
-            if ((value & ~SEGMENT_BITS) == 0)
-            {
-                writeByte(static_cast<unsigned char>(value));
-
-                return this;
-            }
-
-            writeByte(static_cast<unsigned char>((value & SEGMENT_BITS) | CONTINUE_BIT));
-
-            value = (int)((unsigned int)value >> 7);
+            throw net_exception("Read failed!");
         }
 
-        return this;
+        unsigned char byte = vec.at(cursor);
+        cursor++;
+
+        return byte;
     }
-
-    int readVarInt()
+    else
     {
-        int value = 0;
-        int position = 0;
-        unsigned char currentByte;
+        unsigned char bytes[1];
 
-        while (true)
+        int len = recv(fd, bytes, sizeof(bytes), 0);
+        if (len != 1)
         {
-            currentByte = readByte();
-
-            value |= (currentByte & SEGMENT_BITS) << position;
-
-            if ((currentByte & CONTINUE_BIT) == 0)
-                break;
-
-            position += 7;
-
-            if (position >= 32)
-                throw net_exception("VarInt is too big");
+            throw net_exception("Failed to read byte from socket");
         }
 
-        return value;
+        return bytes[0];
     }
+}
 
-    unsigned short readUShort()
+void PacketBuffer::writeByte(unsigned char byte)
+{
+    if (fd < 0)
     {
-        return (readByte() << 8) | readByte();
+        vec.push_back(byte);
+        cursor++;
     }
-
-    PacketBuffer *writeUShort(unsigned short value)
+    else
     {
-        uint16_t networkValue = htons(value);
-
-        writeByte(networkValue & 0xFF);        // Low byte
-        writeByte((networkValue >> 8) & 0xFF); // High byte
-
-        return this;
-    }
-
-    PacketBuffer *writeString(std::string str)
-    {
-        if (str.size() > 32767)
+        unsigned char bytes[1] = {byte};
+        int len = send(fd, bytes, sizeof(bytes), 0);
+        if (len != 1)
         {
-            throw net_exception("the string is too large!");
+            throw net_exception("Failed to write byte to socket");
+        }
+    }
+}
+
+PacketBuffer *PacketBuffer::writeVarInt(int value)
+{
+    while (true)
+    {
+        if ((value & ~SEGMENT_BITS) == 0)
+        {
+            writeByte(static_cast<unsigned char>(value));
+
+            return this;
         }
 
-        this->writeVarInt(str.size());
-        for (size_t i = 0; i < str.size(); i++)
-        {
-            writeByte(str[i]);
-        }
+        writeByte(static_cast<unsigned char>((value & SEGMENT_BITS) | CONTINUE_BIT));
 
-        return this;
+        value = (int)((unsigned int)value >> 7);
     }
 
-    std::string readString()
+    return this;
+}
+
+int PacketBuffer::readVarInt()
+{
+    int value = 0;
+    int position = 0;
+    unsigned char currentByte;
+
+    while (true)
     {
-        int length = this->readVarInt();
+        currentByte = readByte();
 
-        if (length > 32767)
-        {
-            throw net_exception("string too large!");
-        }
+        value |= (currentByte & SEGMENT_BITS) << position;
 
-        std::string str;
+        if ((currentByte & CONTINUE_BIT) == 0)
+            break;
 
-        for (int i = 0; i < length; i++)
-        {
-            str += readByte();
-        }
+        position += 7;
 
-        return str;
+        if (position >= 32)
+            throw net_exception("VarInt is too big");
     }
 
-    size_t getSize()
+    return value;
+}
+
+unsigned short PacketBuffer::readUShort()
+{
+    return (readByte() << 8) | readByte();
+}
+
+PacketBuffer *PacketBuffer::writeUShort(unsigned short value)
+{
+    uint16_t networkValue = htons(value);
+
+    writeByte(networkValue & 0xFF);        // Low byte
+    writeByte((networkValue >> 8) & 0xFF); // High byte
+
+    return this;
+}
+
+PacketBuffer *PacketBuffer::writeString(std::string str)
+{
+    if (str.size() > 32767)
     {
-        return this->vec.size();
+        throw net_exception("the string is too large!");
     }
 
-    std::vector<unsigned char> toBytes()
+    this->writeVarInt(str.size());
+    for (size_t i = 0; i < str.size(); i++)
     {
-        return this->vec;
+        writeByte(str[i]);
     }
 
-    int writeToSocket(int fd)
+    return this;
+}
+
+std::string PacketBuffer::readString()
+{
+    int length = this->readVarInt();
+
+    if (length > 32767)
     {
-        return send(fd, vec.data(), vec.size(), 0);
+        throw net_exception("string too large!");
     }
-};
+
+    std::string str;
+
+    for (int i = 0; i < length; i++)
+    {
+        str += readByte();
+    }
+
+    return str;
+}
+
+size_t PacketBuffer::getSize()
+{
+    return this->vec.size();
+}
+
+std::vector<unsigned char> PacketBuffer::toBytes()
+{
+    return this->vec;
+}

@@ -1,19 +1,17 @@
+#include "scanner.hpp"
+
 #include <iostream>
-#include "cidr.cpp"
+#include "cidr.hpp"
 #include <fstream>
 #include <string>
-#include "mcping.cpp"
+#include "mcping.hpp"
 #include <thread>
-#include <mutex>
-#include <chrono>
-#include <ctime>
 #include <iomanip>
-#include "stats.h"
+#include "stats.hpp"
 #include <optional>
-#include "serverdata.cpp"
-#include "exception/net_exception.cpp"
-#include "exception/ping_parse_exception.cpp"
-#include "database.cpp"
+#include "serverdata.hpp"
+#include "exception/net_exception.hpp"
+#include "exception/ping_parse_exception.hpp"
 
 #define THREADS 5000
 
@@ -37,7 +35,7 @@ void runThread(Database *db, uint32_t startIP, uint32_t endIP)
         {
             // std::cout << "Net exception: " << ex.what() << std::endl;
         }
-        catch (PingParseException &ex)
+        catch (ping_parse_exception &ex)
         {
             std::cout << "Ping parse exception: " << ex.what() << ", data: " << dataStr << std::endl;
         }
@@ -51,6 +49,9 @@ void runThread(Database *db, uint32_t startIP, uint32_t endIP)
     }
 }
 
+/**
+ * Prints scanner progress periodically
+ */
 void statsThread()
 {
     while (true)
@@ -124,7 +125,6 @@ void startScanner(Database *db)
         std::vector<std::thread> threads;
 
         stats.setIpsTotal(numIPs);
-        // total = numIPs;
         while (ip < range.endIp)
         {
             uint32_t endIP = ip + ipsPerThread - 1;
@@ -152,10 +152,8 @@ void startScanner(Database *db)
             t.join();
         }
 
-        std::cout << "THREADS DONE!" << std::endl;
         stats.setIpsDone(0);
     }
 
-    int perSize = ranges.size() / THREADS;
-    std::cout << "IP/thread: " << perSize << std::endl;
+    std::cout << "Done!" << std::endl;
 }

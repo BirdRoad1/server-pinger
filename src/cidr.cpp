@@ -1,15 +1,6 @@
-#pragma once
-#include <iostream>
-#include <vector>
-#include <string>
+#include "cidr.hpp"
 #include <sstream>
 
-struct CidrRange
-{
-    std::string cidr;
-    uint32_t startIp;
-    uint32_t endIp;
-}; // Convert an IPv4 string to a 32-bit integer
 uint32_t ipToInt(const std::string &ip)
 {
     uint32_t result = 0;

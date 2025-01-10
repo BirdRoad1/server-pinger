@@ -1,21 +1,6 @@
-#pragma once
-#include <stdexcept>
+#include "net_exception.hpp"
 
-class net_exception : public std::exception
+const char *net_exception::what() const noexcept
 {
-private:
-    const char *message;
-
-public:
-    net_exception(const char *message)
-    {
-        this->message = message;
-    }
-
-    net_exception() : net_exception("Network error while making request") {}
-
-    const char *what() const noexcept override
-    {
-        return this->message;
-    }
-};
+    return this->message;
+}

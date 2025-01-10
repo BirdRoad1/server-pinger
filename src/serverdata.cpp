@@ -1,44 +1,9 @@
-#pragma once
-#include <string>
-#include <optional>
-#include <vector>
-#include "nlohmann/json.hpp"
+#include "serverdata.hpp"
 #include <iostream>
-#include "exception/ping_parse_exception.cpp"
+#include "exception/ping_parse_exception.hpp"
+#include "nlohmann/json.hpp"
 
 using json = nlohmann::json;
-
-struct PlayerData
-{
-    std::string id;
-    std::string name;
-};
-
-struct Mod
-{
-    std::string modId;
-    std::string version;
-};
-
-struct ModList
-{
-    std::string type;
-    std::vector<Mod> mods;
-};
-
-struct ServerData
-{
-    std::string host;
-    int port;
-    int playerCount;
-    int maxPlayers;
-    std::string descriptionJson;
-    int protocolNumber;
-    std::string versionName;
-    std::vector<PlayerData> players;
-    std::optional<std::string> favicon;
-    std::optional<ModList> modList;
-};
 
 ServerData parseServerData(std::string host, int port, std::string serverJson)
 {
@@ -46,15 +11,15 @@ ServerData parseServerData(std::string host, int port, std::string serverJson)
     json version = data["version"];
     if (!version.is_object())
     {
-        throw PingParseException("missing version");
+        throw ping_parse_exception("missing version");
     }
 
     json versionName = version["name"];
     if (!versionName.is_string())
-        throw PingParseException("missing version name");
+        throw ping_parse_exception("missing version name");
     json versionProtocol = version["protocol"];
     if (!versionProtocol.is_number_integer())
-        throw PingParseException("missing version protocol");
+        throw ping_parse_exception("missing version protocol");
 
     json favicon = data["favicon"];
     std::optional<std::string> faviconStr = favicon.is_string() ? std::optional(favicon) : std::nullopt;
@@ -71,20 +36,20 @@ ServerData parseServerData(std::string host, int port, std::string serverJson)
     }
     else
     {
-        throw PingParseException("missing description");
+        throw ping_parse_exception("missing description");
     }
 
     json players = data["players"];
     if (!players.is_object())
-        throw PingParseException("missing players");
+        throw ping_parse_exception("missing players");
 
     json maxPlayers = players["max"];
     if (!maxPlayers.is_number_integer())
-        throw PingParseException("missing max players");
+        throw ping_parse_exception("missing max players");
 
     json onlinePlayers = players["online"];
     if (!onlinePlayers.is_number_integer())
-        throw PingParseException("missing online players");
+        throw ping_parse_exception("missing online players");
 
     std::optional<ModList> modList;
 
@@ -93,13 +58,13 @@ ServerData parseServerData(std::string host, int port, std::string serverJson)
     {
         json modType = modJson["type"];
         if (!modType.is_string())
-            throw PingParseException("invalid mod list type");
+            throw ping_parse_exception("invalid mod list type");
 
         std::vector<Mod> mods;
 
         json modListJson = modJson["modList"];
         if (!modListJson.is_array())
-            throw PingParseException("missing mod list");
+            throw ping_parse_exception("missing mod list");
 
         for (json modObj : modListJson)
         {
@@ -144,36 +109,6 @@ ServerData parseServerData(std::string host, int port, std::string serverJson)
 
             playersVec.push_back(plr);
         }
-        // json modType = modJson["type"];
-        // if (!modType.is_string())
-        //     throw PingParseException("invalid mod list type");
-
-        // std::vector<Mod> mods;
-
-        // json modListJson = modJson["modList"];
-        // if (!modListJson.is_array())
-        //     throw PingParseException("missing mod list");
-
-        // for (json modObj : modListJson)
-        // {
-        //     json modId = modObj["modid"];
-        //     json modVersion = modObj["version"];
-        //     if (!modId.is_string() || !modVersion.is_string())
-        //     {
-        //         std::cout << "invalid mod id/version" << std::endl;
-        //         continue;
-        //     }
-
-        //     Mod mod {
-        //         modId,
-        //         modVersion};
-
-        //     mods.push_back(mod);
-        // }
-
-        // ModList newModList{modType, mods};
-
-        // modList = std::optional(newModList);
     }
 
     ServerData serverData{
@@ -183,7 +118,9 @@ ServerData parseServerData(std::string host, int port, std::string serverJson)
         maxPlayers,
         descriptionStr,
         versionProtocol,
-        versionName, playersVec, faviconStr,
+        versionName,
+        playersVec,
+        faviconStr,
         modList};
 
     return serverData;

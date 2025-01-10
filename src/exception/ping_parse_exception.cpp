@@ -1,19 +1,6 @@
-#pragma once
-#include <stdexcept>
+#include "ping_parse_exception.hpp"
 
-class PingParseException : public std::exception
+const char *ping_parse_exception::what() const noexcept
 {
-private:
-    const char *message;
-
-public:
-    PingParseException(const char *msg)
-    {
-        this->message = msg;
-    }
-
-    const char *what() const noexcept override
-    {
-        return this->message;
-    }
-};
+    return this->message;
+}

@@ -1,6 +1,7 @@
-#include "scanner.cpp"
-#include "database.cpp"
+#include "scanner.hpp"
+#include "database.hpp"
 #include <optional>
+#include <iostream>
 
 int main()
 {
