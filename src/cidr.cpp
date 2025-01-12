@@ -1,9 +1,9 @@
 #include "cidr.hpp"
 #include <sstream>
 
-uint32_t ipToInt(const std::string &ip)
+unsigned int ipToInt(const std::string &ip)
 {
-    uint32_t result = 0;
+    int result = 0;
     std::istringstream iss(ip);
     std::string token;
     for (int i = 0; i < 4; ++i)
@@ -15,7 +15,7 @@ uint32_t ipToInt(const std::string &ip)
 }
 
 // Convert a 32-bit integer back to an IPv4 string
-std::string intToIp(uint32_t ip)
+std::string intToIp(unsigned int ip)
 {
     return std::to_string((ip >> 24) & 0xFF) + "." +
            std::to_string((ip >> 16) & 0xFF) + "." +
@@ -24,8 +24,8 @@ std::string intToIp(uint32_t ip)
 }
 
 // Calculate the ending IP of a CIDR range
-uint32_t cidrEndIp(uint32_t startIp, int prefixLength)
+unsigned int cidrEndIp(unsigned int startIp, unsigned int prefixLength)
 {
-    uint32_t mask = (prefixLength == 0) ? 0 : (~0U << (32 - prefixLength));
+    int mask = (prefixLength == 0) ? 0 : (~0U << (32 - prefixLength));
     return startIp | ~mask;
 }
