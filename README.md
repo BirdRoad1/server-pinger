@@ -1,4 +1,4 @@
-# CPinger
+# MCPinger
 
 Easy-to-use tool written in C++ that can scan the entire internet (or IP ranges of your choosing) for Minecraft servers. This tool leverages the Minecraft protocol's `Server List Ping` system documented [here](https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Server_List_Ping).
 
