@@ -15,6 +15,7 @@ include_directories(include)
 
 # Add an executable target
 add_executable(mcpinger ${SOURCE_FILES})
+target_compile_options(mcpinger PRIVATE -Wall -Wextra -Wpedantic)
 find_library(LIBPQ pq PATHS /usr/lib/x86_64-linux-gnu)
 find_library(LIBPQXX pqxx PATHS /usr/lib/x86_64-linux-gnu)
 target_link_libraries(mcpinger PRIVATE ${LIBPQ} ${LIBPQXX})
