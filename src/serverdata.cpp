@@ -91,9 +91,9 @@ ServerData parseServerData(std::string host, int port, std::string serverJson)
     std::vector<PlayerData> playersVec;
 
     json playersJson = players["sample"];
-    if (modJson.is_array())
+    if (playersJson.is_array())
     {
-        for (json playerJson : modJson)
+        for (json playerJson : playersJson)
         {
             json id = playerJson["id"];
             json name = playerJson["name"];
