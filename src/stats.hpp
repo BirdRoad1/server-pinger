@@ -4,18 +4,20 @@
 class Stats
 {
 private:
-    std::mutex statsMutex;
-    int ipsDone;
-    int ipsTotal;
-    int packets;
+    std::mutex ipsDoneMutex;
+    std::mutex ipsTotalMutex;
+    std::mutex packetsMutex;
+    long long ipsDone;
+    long long ipsTotal;
+    long long packets;
 
 public:
-    int getIpsDone();
-    void setIpsDone(int ipsDone);
-    
-    int getIpsTotal();
-    void setIpsTotal(int ipsTotal);
-    
-    int getPackets();
-    void setPackets(int packets);
+    long long getIpsDone();
+    void setIpsDone(long long ipsDone);
+
+    long long getIpsTotal();
+    void setIpsTotal(long long ipsTotal);
+
+    long long getPackets();
+    void setPackets(long long packets);
 };

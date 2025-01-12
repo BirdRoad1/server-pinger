@@ -1,37 +1,37 @@
 #include "stats.hpp"
 
-int Stats::getIpsDone()
+long long Stats::getIpsDone()
 {
     return this->ipsDone;
 }
 
-void Stats::setIpsDone(int ipsDone)
+void Stats::setIpsDone(long long ipsDone)
 {
-    statsMutex.lock();
+    ipsDoneMutex.lock();
     this->ipsDone = ipsDone;
-    statsMutex.unlock();
+    ipsDoneMutex.unlock();
 }
 
-int Stats::getIpsTotal()
+long long Stats::getIpsTotal()
 {
     return this->ipsTotal;
 }
 
-void Stats::setIpsTotal(int ipsTotal)
+void Stats::setIpsTotal(long long ipsTotal)
 {
-    statsMutex.lock();
+    ipsTotalMutex.lock();
     this->ipsTotal = ipsTotal;
-    statsMutex.unlock();
+    ipsTotalMutex.unlock();
 }
 
-int Stats::getPackets()
+long long Stats::getPackets()
 {
     return this->packets;
 }
 
-void Stats::setPackets(int packets)
+void Stats::setPackets(long long packets)
 {
-    statsMutex.lock();
+    packetsMutex.lock();
     this->packets = packets;
-    statsMutex.unlock();
+    packetsMutex.unlock();
 }
