@@ -16,7 +16,8 @@ bool Database::connect()
             return false;
         }
 
-        if (!std::getline(file, connLine)) {
+        if (!std::getline(file, connLine))
+        {
             std::cout << "Failed to read the database URL from db.txt!" << std::endl;
             return false;
         }
@@ -84,7 +85,6 @@ void Database::setupDatabase()
             )");
 
     tx.commit();
-    // tx.exec("CREATE TABLE IF NOT EXISTS mod (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, mod_id VARCHAR(1000) NOT NULL)");
 }
 
 void Database::insertServerData(ServerData server)
@@ -94,15 +94,13 @@ void Database::insertServerData(ServerData server)
         throw std::runtime_error("not connected");
     }
 
-    std::string *modType = NULL; // = server.modList.has_value() ? &modTypeStr : NULL;
+    std::string *modType = NULL;
     std::string modTypeStr;
     if (server.modList.has_value())
     {
         modTypeStr = server.modList.value().type;
         modType = &modTypeStr;
     }
-
-    // std::string modTypeStr = server.modList.value().type;
 
     mutex.lock();
     pqxx::work tx{*conn};
@@ -136,7 +134,7 @@ void Database::insertServerData(ServerData server)
     {
         mutex.lock();
         pqxx::work tx{*conn};
-        tx.exec_params("INSERT INTO players (uuid,username,server_id) VALUES ($1, $2, $3);", plr.id, plr.name, serverId);
+        tx.exec_params("INSERT INTO player (uuid,username,server_id) VALUES ($1, $2, $3);", plr.id, plr.name, serverId);
         tx.commit();
         mutex.unlock();
     }
