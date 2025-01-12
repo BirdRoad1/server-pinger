@@ -1,7 +1,7 @@
 #pragma once
 #include "database.hpp"
 
-void runThread(Database *db, uint32_t startIP, uint32_t endIP);
+void runThread(Database *db, long long startIP, long long endIP);
 
 /**
  * Prints scanner progress periodically
