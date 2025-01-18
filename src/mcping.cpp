@@ -4,6 +4,8 @@
 #include "exception/net_exception.hpp"
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <unistd.h>
+#include <iostream>
 
 /**
  * Send Server List Ping request to server and returns the response
@@ -27,7 +29,7 @@ std::string pingServer(std::string host, int port)
 
     // setup socket timeout
     struct timeval timeout;
-    timeout.tv_sec = 2;
+    timeout.tv_sec = 5;
     timeout.tv_usec = 0;
 
     setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
@@ -36,6 +38,7 @@ std::string pingServer(std::string host, int port)
     // connect to server
     if (connect(client, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
     {
+        close(client);
         throw net_exception("failed to connect");
     }
 
@@ -84,10 +87,14 @@ std::string pingServer(std::string host, int port)
 
     // read packet length
     clientBuf.readVarInt();
-    
+
     // read packet id
     clientBuf.readVarInt();
 
     // read server list ping JSON response
-    return clientBuf.readString();
+    std::string json = clientBuf.readString();
+
+    close(client);
+
+    return json;
 }
