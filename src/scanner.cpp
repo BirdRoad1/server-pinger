@@ -12,9 +12,12 @@
 #include "serverdata.hpp"
 #include "exception/net_exception.hpp"
 #include "exception/ping_parse_exception.hpp"
+#include <queue>
 
-#define THREADS 1000
+#define THREADS 300
 
+std::queue<CidrRange> ipQueue;
+std::mutex mut;
 Stats stats;
 
 void scanTask(Database *db, int ip)
@@ -26,6 +29,7 @@ void scanTask(Database *db, int ip)
     {
         dataStr = pingServer(ipStr, 25565);
         ServerData data = parseServerData(ipStr, 25565, dataStr);
+        std::cout << "MOTD:" << data.descriptionJson << std::endl;
         db->insertServerData(data);
     }
     catch (net_exception &ex)
@@ -45,25 +49,34 @@ void scanTask(Database *db, int ip)
     stats.setPackets(stats.getPackets() + 1);
 }
 
-void runThread(Database *db, long long startIP, long long endIP)
+void runThread(Database *db)
 {
     std::cout << "Thread started!" << std::endl;
-
-    for (long long i = startIP; i < endIP; i++)
+    while (true)
     {
-        scanTask(db, i);
-    }
+        mut.lock();
+        CidrRange range = ipQueue.front();
+        if (ipQueue.empty())
+        {
+            mut.unlock();
+            return;
+        }
 
-    std::cout << "Thread shutdown!" << std::endl;
-}
+        ipQueue.pop();
+        mut.unlock();
 
-void runThreadVec(Database *db, std::vector<int> ips)
-{
-    std::cout << "Thread started!" << std::endl;
-
-    for (int i : ips)
-    {
-        scanTask(db, i);
+        if (range.startIp == range.endIp)
+        {
+            // one ip
+            scanTask(db, range.startIp);
+        }
+        else
+        {
+            for (unsigned int i = range.startIp; i < range.endIp; i++)
+            {
+                scanTask(db, i);
+            }
+        }
     }
 
     std::cout << "Thread shutdown!" << std::endl;
@@ -89,48 +102,36 @@ void statsThread()
     }
 }
 
-void scanExtraIPs(Database *db, std::vector<int> &extraIPs)
+void handleFileLine(std::string line)
 {
-    size_t total_ips = extraIPs.size();         // Total number of IPs
-    long long chunk_size = total_ips / THREADS; // Base size of each chunk
-    long long remainder = total_ips % THREADS;  // Remaining IPs to distribute
-    int chunks = chunk_size > 0 ? total_ips / chunk_size : 0;
+    if (line.starts_with("#"))
+        return;
 
-    std::vector<std::thread> threads;
-
-    stats.setIpsTotal(extraIPs.size());
-
-    for (int i = 0; i < chunks; i++)
+    std::size_t pos = line.find("/");
+    if (pos == std::string::npos)
     {
-        long long start = i * chunk_size;
-        long long end = start + chunk_size;
+        // Handle IP address
+        ipQueue.push(CidrRange{ipToInt(line), ipToInt(line)});
+    }
+    else
+    {
+        // Handle CIDR
+        std::string ip = line.substr(0, pos);
+        std::string bitmaskStr = line.substr(pos + 1);
 
-        std::vector<int> slice;
-        for (int i = start; i < end; i++)
+        int bitmask;
+        try
         {
-            slice.push_back(extraIPs.at(i));
+            bitmask = std::stoi(bitmaskStr);
+        }
+        catch (std::exception &ex)
+        {
+            std::cout << "Could not convert bitmask to int: " << ex.what() << std::endl;
+            return;
         }
 
-        threads.emplace_back(std::thread(runThreadVec, db, slice));
+        ipQueue.push(CidrRange{ipToInt(ip), cidrEndIp(ipToInt(ip), bitmask)});
     }
-
-    if (remainder > 0)
-    {
-        std::vector<int> slice;
-        for (size_t i = total_ips - remainder; i < total_ips; i++)
-        {
-            slice.push_back(extraIPs.at(i));
-        }
-
-        threads.emplace_back(std::thread(runThreadVec, db, slice));
-    }
-
-    for (auto &t : threads)
-    {
-        t.join();
-    }
-
-    stats.setIpsDone(0);
 }
 
 void startScanner(Database *db)
@@ -148,90 +149,26 @@ void startScanner(Database *db)
     std::string line;
     while (std::getline(file, line))
     {
-        lines.push_back(line);
-    }
-
-    // IPs in ips.txt that aren't ranges
-    std::vector<int> extraIPs;
-
-    std::vector<CidrRange> ranges;
-    for (std::string line : lines)
-    {
-        if (line.at(0) == '#')
-            continue;
-
-        size_t index = line.find("/");
-
-        if (index == std::string::npos)
-        {
-            extraIPs.push_back(ipToInt(line));
-        }
-        else
-        {
-            std::string ip = line.substr(0, index);
-            std::string bitmaskStr = line.substr(index + 1);
-
-            int bitmask;
-            try
-            {
-                bitmask = std::stoi(bitmaskStr);
-            }
-            catch (std::exception &ex)
-            {
-                std::cout << "Could not convert bitmask to int: " << ex.what() << std::endl;
-                return;
-            }
-
-            CidrRange range = {line, ipToInt(ip), cidrEndIp(ipToInt(ip), bitmask)};
-            ranges.push_back(range);
-        }
+        handleFileLine(line);
     }
 
     // Start stats printer thread
     std::thread(statsThread).detach();
 
-    // Scan individual IPs first
-    std::cout << "Loaded " << extraIPs.size() << " individual IPs" << std::endl;
-    scanExtraIPs(db, extraIPs);
+    std::vector<std::thread> threads;
 
-    // Now, scan CIDRs
-    std::cout << "Now scanning ranges!" << std::endl;
-    for (const auto &range : ranges)
+    for (int i = 0; i < THREADS; i++)
     {
-        long long start_ip = range.startIp; // Example starting IP (as integer)
-        long long end_ip = range.endIp;     // Example ending IP (as integer)
-
-        long long total_ips = end_ip - start_ip + 1; // Total number of IPs
-        long long chunk_size = total_ips / THREADS;  // Base size of each chunk
-        long long remainder = total_ips % THREADS;   // Remaining IPs to distribute
-        std::cout << chunk_size << std::endl;
-        int chunks = chunk_size > 0 ? total_ips / chunk_size : 0;
-
-        std::vector<std::thread> threads;
-
-        stats.setIpsTotal(total_ips);
-
-        for (int i = 0; i < chunks; i++)
-        {
-            long long start = i * chunk_size;
-            long long end = start + chunk_size;
-            threads.emplace_back(std::thread(runThread, db, start, end));
-        }
-
-        long long leftOff = (end_ip - remainder + 1);
-
-        if (remainder > 0)
-        {
-            threads.emplace_back(std::thread(runThread, db, leftOff, end_ip + 1));
-        }
-
-        for (auto &t : threads)
-        {
-            t.join();
-        }
-
-        stats.setIpsDone(0);
+        threads.emplace_back(std::thread(runThread, db));
     }
 
-    std::cout << "Done!" << std::endl;
+    stats.setIpsTotal(ipQueue.size());
+    std::cout << "Loaded " << ipQueue.size() << " IP addresses" << std::endl;
+
+    for (auto &t : threads)
+    {
+        t.join();
+    }
+
+    std::cout << "Done scanning!" << std::endl;
 }

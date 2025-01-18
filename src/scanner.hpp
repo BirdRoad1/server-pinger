@@ -3,11 +3,9 @@
 
 void scanTask(Database *db, int ip);
 
-void runThread(Database *db, long long startIP, long long endIP);
+void runThread(Database *db);
 
-void runThreadVec(Database *db, std::vector<int> ips);
-
-void scanExtraIPs(Database *db, std::vector<int> &extraIPs);
+void scanExtraIPs(Database *db, std::vector<unsigned int> &extraIPs);
 
 /**
  * Prints scanner progress periodically
