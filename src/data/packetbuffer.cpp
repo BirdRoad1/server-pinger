@@ -3,6 +3,7 @@
 #include <iostream>
 #include <stdexcept>
 #include "../exception/net_exception.hpp"
+#include <unistd.h>
 
 unsigned char PacketBuffer::readByte()
 {
@@ -10,6 +11,7 @@ unsigned char PacketBuffer::readByte()
     {
         if (cursor >= vec.size())
         {
+            close(fd);
             throw net_exception("Read failed!");
         }
 
@@ -25,6 +27,7 @@ unsigned char PacketBuffer::readByte()
         int len = recv(fd, bytes, sizeof(bytes), 0);
         if (len != 1)
         {
+            close(fd);
             throw net_exception("Failed to read byte from socket");
         }
 
@@ -45,6 +48,7 @@ void PacketBuffer::writeByte(unsigned char byte)
         int len = send(fd, bytes, sizeof(bytes), 0);
         if (len != 1)
         {
+            close(fd);
             throw net_exception("Failed to write byte to socket");
         }
     }
@@ -87,7 +91,10 @@ int PacketBuffer::readVarInt()
         position += 7;
 
         if (position >= 32)
+        {
+            close(fd);
             throw net_exception("VarInt is too big");
+        }
     }
 
     return value;
