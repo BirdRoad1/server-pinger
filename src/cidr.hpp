@@ -3,7 +3,6 @@
 
 struct CidrRange
 {
-    std::string cidr;
     unsigned int startIp;
     unsigned int endIp;
 };
