@@ -13,6 +13,7 @@
 #include "exception/net_exception.hpp"
 #include "exception/ping_parse_exception.hpp"
 #include <queue>
+#include "progress_writer.hpp"
 
 #define THREADS 300
 
@@ -45,6 +46,7 @@ void scanTask(Database *db, int ip)
         std::cout << "Caught exception while checking server: " << ex.what() << std::endl;
     }
 
+    ProgressWriter::writeIP(ipStr);
     stats.setIpsDone(stats.getIpsDone() + 1);
     stats.setPackets(stats.getPackets() + 1);
 }
@@ -165,10 +167,13 @@ void startScanner(Database *db)
     stats.setIpsTotal(ipQueue.size());
     std::cout << "Loaded " << ipQueue.size() << " IP addresses" << std::endl;
 
-    for (auto &t : threads)
-    {
-        t.join();
-    }
+        for (auto &t : threads)
+        {
+            if (t.joinable())
+            {
+                t.join();
+            }
+        }
 
     std::cout << "Done scanning!" << std::endl;
 }
