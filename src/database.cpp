@@ -21,6 +21,8 @@ bool Database::connect()
             std::cout << "Failed to read the database URL from db.txt!" << std::endl;
             return false;
         }
+
+        file.close();
     }
     catch (std::exception &ex)
     {
