@@ -7,9 +7,9 @@ private:
     std::mutex ipsDoneMutex;
     std::mutex ipsTotalMutex;
     std::mutex packetsMutex;
-    long long ipsDone;
-    long long ipsTotal;
-    long long packets;
+    long long ipsDone = 0;
+    long long ipsTotal = 0;
+    long long packets = 0;
 
 public:
     long long getIpsDone();
