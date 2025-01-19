@@ -32,7 +32,7 @@ bool Database::connect()
 
     try
     {
-        pqxx::connection *conn = new pqxx::connection{connLine};
+        auto *conn = new pqxx::connection{connLine};
 
         this->conn = conn;
         return true;
@@ -45,9 +45,8 @@ bool Database::connect()
     }
 }
 
-void Database::setupDatabase()
-{
-    if (conn == NULL)
+void Database::setupDatabase() const {
+    if (conn == nullptr)
     {
         throw std::runtime_error("not connected");
     }
@@ -57,31 +56,31 @@ void Database::setupDatabase()
                     id SERIAL PRIMARY KEY,
                     host TEXT NOT NULL,
                     port INT NOT NULL,
-                    motd TEXT NOT NULL,
-                    protocolNumber INT NOT NULL,
-                    versionName TEXT NOT NULL,
+                    motd TEXT,
+                    protocolNumber INT,
+                    versionName TEXT,
                     modType TEXT,
                     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     latency INT,
-                    maxPlayers INT NOT NULL,
-                    playerCount INT NOT NULL
+                    maxPlayers INT,
+                    playerCount INT
                 );
 
                 CREATE TABLE IF NOT EXISTS mod(
                     id SERIAL PRIMARY KEY,
                     mod_id TEXT NOT NULL,
-                    version TEXT NOT NULL,
+                    version TEXT,
                     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    server_id INT NOT NULL,
+                    server_id INT,
                     FOREIGN KEY (server_id) REFERENCES server (id)
                 );
 
                 CREATE TABLE IF NOT EXISTS player (
                     id SERIAL PRIMARY KEY,
                     uuid VARCHAR(36) NOT NULL,
-                    username TEXT NOT NULL,
+                    username TEXT,
                     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    server_id INT NOT NULL,
+                    server_id INT,
                     FOREIGN KEY (server_id) REFERENCES server (id)
                 );
             )");
@@ -91,23 +90,21 @@ void Database::setupDatabase()
 
 void Database::insertServerData(ServerData server)
 {
-    if (conn == NULL)
+    if (conn == nullptr)
     {
         throw std::runtime_error("not connected");
     }
 
-    std::string *modType = NULL;
-    std::string modTypeStr;
+    std::optional<std::string> modTypeStr;
     if (server.modList.has_value())
     {
         modTypeStr = server.modList.value().type;
-        modType = &modTypeStr;
     }
 
-    mutex.lock();
+    std::unique_lock lock(mutex);
     pqxx::work tx{*conn};
     pqxx::result serverRow = tx.exec_params("INSERT INTO server (host,port,motd,protocolNumber,versionName,modType,maxPlayers,playerCount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;",
-                                            server.host, server.port, server.descriptionJson, server.protocolNumber, server.versionName, modType, server.maxPlayers, server.playerCount);
+                                            server.host, server.port, server.descriptionJson, server.protocolNumber, server.versionName, modTypeStr, server.maxPlayers, server.playerCount);
 
     if (serverRow.empty())
     {
@@ -117,27 +114,25 @@ void Database::insertServerData(ServerData server)
     int serverId = serverRow[0][0].as<int>();
 
     tx.commit();
-    mutex.unlock();
+    lock.unlock();
 
     if (server.modList.has_value())
     {
         ModList modList = server.modList.value();
-        for (Mod mod : modList.mods)
+        for (const Mod& mod : modList.mods)
         {
-            mutex.lock();
+            std::lock_guard lock(mutex);
             pqxx::work tx{*conn};
             tx.exec_params("INSERT INTO mod (mod_id,version,server_id) VALUES ($1, $2, $3);", mod.modId, mod.version, serverId);
             tx.commit();
-            mutex.unlock();
         }
     }
 
-    for (PlayerData plr : server.players)
+    for (const PlayerData& plr : server.players)
     {
-        mutex.lock();
+        std::lock_guard lock(mutex);
         pqxx::work tx{*conn};
         tx.exec_params("INSERT INTO player (uuid,username,server_id) VALUES ($1, $2, $3);", plr.id, plr.name, serverId);
         tx.commit();
-        mutex.unlock();
     }
 }

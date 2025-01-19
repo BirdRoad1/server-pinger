@@ -18,7 +18,7 @@ void ProgressWriter::open()
 
 void ProgressWriter::writeIP(std::string str)
 {
-    mutex.lock();
+    std::lock_guard lock(mutex);
 
     if (!ProgressWriter::isOpen)
     {
@@ -30,20 +30,14 @@ void ProgressWriter::writeIP(std::string str)
 
     (*stream) << str << '\n';
     stream->flush();
-
-    delete stream;
-
-    mutex.unlock();
 }
 
 void ProgressWriter::close()
 {
-    mutex.lock();
+    std::lock_guard lock(mutex);
     if (ProgressWriter::stream == NULL)
         return;
 
     ProgressWriter::stream->close();
     ProgressWriter::isOpen = false;
-
-    mutex.unlock();
 }
