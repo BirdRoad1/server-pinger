@@ -6,7 +6,7 @@
 struct PlayerData
 {
     std::string id;
-    std::string name;
+    std::optional<std::string> name;
 };
 
 struct Mod
@@ -25,14 +25,15 @@ struct ServerData
 {
     std::string host;
     int port;
-    int playerCount;
-    int maxPlayers;
-    std::string descriptionJson;
-    int protocolNumber;
-    std::string versionName;
+
+    std::optional<int> playerCount;
+    std::optional<int> maxPlayers;
+    std::optional<std::string> descriptionJson;
+    std::optional<int> protocolNumber;
+    std::optional<std::string> versionName;
     std::vector<PlayerData> players;
     std::optional<std::string> favicon;
     std::optional<ModList> modList;
 };
 
-ServerData parseServerData(std::string host, int port, std::string serverJson);
+ServerData parseServerData(std::string host, int port, const std::string& serverJson);
