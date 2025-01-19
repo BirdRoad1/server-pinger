@@ -1,23 +1,24 @@
 #pragma once
-#include <mutex>
+#include <atomic>
 
 class Stats
 {
 private:
-    std::mutex ipsDoneMutex;
-    std::mutex ipsTotalMutex;
-    std::mutex packetsMutex;
-    long long ipsDone = 0;
-    long long ipsTotal = 0;
-    long long packets = 0;
+    std::atomic<long long> ipsDone{0};
+    std::atomic<long long> ipsTotal{0};
+    std::atomic<long long> packets{0};
+    std::atomic<long long> activeThreads{0};
 
 public:
-    long long getIpsDone();
+    long long getIpsDone() const;
     void setIpsDone(long long ipsDone);
 
-    long long getIpsTotal();
+    long long getIpsTotal() const;
     void setIpsTotal(long long ipsTotal);
 
-    long long getPackets();
+    long long getPackets() const;
     void setPackets(long long packets);
+
+    long long getActiveThreads() const;
+    void setActiveThreads(long long packets);
 };
