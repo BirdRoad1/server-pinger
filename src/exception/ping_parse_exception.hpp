@@ -7,7 +7,7 @@ private:
     const char *message;
 
 public:
-    ping_parse_exception(const char *msg)
+    explicit ping_parse_exception(const char *msg)
     {
         this->message = msg;
     }

@@ -15,7 +15,7 @@ unsigned int ipToInt(const std::string &ip)
 }
 
 // Convert a 32-bit integer back to an IPv4 string
-std::string intToIp(unsigned int ip)
+std::string intToIp(const unsigned int ip)
 {
     return std::to_string((ip >> 24) & 0xFF) + "." +
            std::to_string((ip >> 16) & 0xFF) + "." +
@@ -24,7 +24,7 @@ std::string intToIp(unsigned int ip)
 }
 
 // Calculate the ending IP of a CIDR range
-unsigned int cidrEndIp(unsigned int startIp, unsigned int prefixLength)
+unsigned int cidrEndIp(const unsigned int startIp, const unsigned int prefixLength)
 {
     int mask = (prefixLength == 0) ? 0 : (~0U << (32 - prefixLength));
     return startIp | ~mask;

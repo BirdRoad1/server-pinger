@@ -3,24 +3,19 @@
 #include "serverdata.hpp"
 #include <mutex>
 
-class Database
-{
+class Database {
 private:
     std::mutex mutex;
-    pqxx::connection *conn = NULL;
+    pqxx::connection *conn = nullptr;
 
 public:
-    ~Database()
-    {
-        if (conn != NULL)
-        {
-            delete conn;
-        }
+    ~Database() {
+        delete conn;
     }
 
     bool connect();
 
-    void setupDatabase();
+    void setupDatabase() const;
 
     void insertServerData(ServerData server);
 };

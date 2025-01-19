@@ -11,9 +11,9 @@
  * Send Server List Ping request to server and returns the response
  * If there is no response or something goes wrong, `net_exception` is thrown
  */
-std::string pingServer(std::string host, int port)
+std::string pingServer(const std::string& host, const int port)
 {
-    struct sockaddr_in server_addr = {};
+    sockaddr_in server_addr = {};
 
     // create socket
     int client = socket(AF_INET, SOCK_STREAM, 0);
@@ -28,15 +28,15 @@ std::string pingServer(std::string host, int port)
     inet_aton(host.c_str(), &server_addr.sin_addr);
 
     // setup socket timeout
-    struct timeval timeout;
-    timeout.tv_sec = 5;
+    timeval timeout{};
+    timeout.tv_sec = 10;
     timeout.tv_usec = 0;
 
     setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
     setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
     // connect to server
-    if (connect(client, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    if (connect(client, reinterpret_cast<sockaddr *>(&server_addr), sizeof(server_addr)) < 0)
     {
         close(client);
         throw net_exception("failed to connect");
@@ -53,7 +53,7 @@ std::string pingServer(std::string host, int port)
 
     // holds packetBuf's length
     PacketBuffer lengthBuffer;
-    lengthBuffer.writeVarInt(packetBuf.getSize());
+    lengthBuffer.writeVarInt(static_cast<int>(packetBuf.getSize()));
 
     // holds length + data
     std::vector<unsigned char> tempBuffer;
@@ -70,7 +70,10 @@ std::string pingServer(std::string host, int port)
 
     // Send handshake packet
     unsigned char *tempData = &tempBuffer[0];
-    send(client, tempData, tempBuffer.size(), 0);
+    if (send(client, tempData, tempBuffer.size(), 0) < tempBuffer.size())
+    {
+        throw net_exception("failed to send()");
+    }
 
     // Empty 0x0 handshake packet
     PacketBuffer emptyPacket;
@@ -80,7 +83,10 @@ std::string pingServer(std::string host, int port)
     // Send packet
     std::vector<unsigned char> emptyBuffer = emptyPacket.toBytes();
     unsigned char *emptyData = &emptyBuffer[0];
-    send(client, emptyData, emptyBuffer.size(), 0);
+    if (send(client, emptyData, emptyBuffer.size(), 0) < emptyBuffer.size())
+    {
+        throw net_exception("failed to send()");
+    }
 
     // Read server list ping response packet
     PacketBuffer clientBuf(client);

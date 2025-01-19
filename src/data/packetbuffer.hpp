@@ -9,14 +9,14 @@ private:
     int fd = -1;
     std::vector<unsigned char> vec;
     size_t cursor = 0;
-    static const int SEGMENT_BITS = 0x7F;
-    static const int CONTINUE_BIT = 0x80;
+    static constexpr int SEGMENT_BITS = 0x7F;
+    static constexpr int CONTINUE_BIT = 0x80;
 
 public:
     /**
      * Creates a packet buffer that reads/writes to a stream (fd)
      */
-    PacketBuffer(int fd)
+    explicit PacketBuffer(int fd)
     {
         this->fd = fd;
     }
@@ -24,7 +24,7 @@ public:
     /**
      * Creates a packet buffer that reads/writes to a vector in-memory
      */
-    PacketBuffer() {}
+    PacketBuffer() = default;
 
     unsigned char readByte();
 
@@ -38,11 +38,11 @@ public:
 
     PacketBuffer *writeUShort(unsigned short value);
 
-    PacketBuffer *writeString(std::string str);
+    PacketBuffer *writeString(const std::string& str);
 
     std::string readString();
 
-    size_t getSize();
+    size_t getSize() const;
 
     std::vector<unsigned char> toBytes();
 };

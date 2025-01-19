@@ -5,28 +5,21 @@
 #include "../exception/net_exception.hpp"
 #include <unistd.h>
 
-unsigned char PacketBuffer::readByte()
-{
-    if (fd < 0)
-    {
-        if (cursor >= vec.size())
-        {
+unsigned char PacketBuffer::readByte() {
+    if (fd < 0) {
+        if (cursor >= vec.size()) {
             close(fd);
             throw net_exception("Read failed!");
         }
 
-        unsigned char byte = vec.at(cursor);
+        const unsigned char byte = vec.at(cursor);
         cursor++;
 
         return byte;
-    }
-    else
-    {
+    } else {
         unsigned char bytes[1];
 
-        int len = recv(fd, bytes, sizeof(bytes), 0);
-        if (len != 1)
-        {
+        if (recv(fd, bytes, sizeof(bytes), 0) != 1) {
             close(fd);
             throw net_exception("Failed to read byte from socket");
         }
@@ -35,31 +28,22 @@ unsigned char PacketBuffer::readByte()
     }
 }
 
-void PacketBuffer::writeByte(unsigned char byte)
-{
-    if (fd < 0)
-    {
+void PacketBuffer::writeByte(unsigned char byte) {
+    if (fd < 0) {
         vec.push_back(byte);
         cursor++;
-    }
-    else
-    {
+    } else {
         unsigned char bytes[1] = {byte};
-        int len = send(fd, bytes, sizeof(bytes), 0);
-        if (len != 1)
-        {
+        if (send(fd, bytes, sizeof(bytes), 0) != 1) {
             close(fd);
             throw net_exception("Failed to write byte to socket");
         }
     }
 }
 
-PacketBuffer *PacketBuffer::writeVarInt(int value)
-{
-    while (true)
-    {
-        if ((value & ~SEGMENT_BITS) == 0)
-        {
+PacketBuffer *PacketBuffer::writeVarInt(int value) {
+    while (true) {
+        if ((value & ~SEGMENT_BITS) == 0) {
             writeByte(static_cast<unsigned char>(value));
 
             return this;
@@ -67,20 +51,16 @@ PacketBuffer *PacketBuffer::writeVarInt(int value)
 
         writeByte(static_cast<unsigned char>((value & SEGMENT_BITS) | CONTINUE_BIT));
 
-        value = (int)((unsigned int)value >> 7);
+        value = static_cast<int>(static_cast<unsigned int>(value) >> 7);
     }
-
-    return this;
 }
 
-int PacketBuffer::readVarInt()
-{
+int PacketBuffer::readVarInt() {
     int value = 0;
     int position = 0;
     unsigned char currentByte;
 
-    while (true)
-    {
+    while (true) {
         currentByte = readByte();
 
         value |= (currentByte & SEGMENT_BITS) << position;
@@ -90,8 +70,7 @@ int PacketBuffer::readVarInt()
 
         position += 7;
 
-        if (position >= 32)
-        {
+        if (position >= 32) {
             close(fd);
             throw net_exception("VarInt is too big");
         }
@@ -100,62 +79,52 @@ int PacketBuffer::readVarInt()
     return value;
 }
 
-unsigned short PacketBuffer::readUShort()
-{
+unsigned short PacketBuffer::readUShort() {
     return (readByte() << 8) | readByte();
 }
 
-PacketBuffer *PacketBuffer::writeUShort(unsigned short value)
-{
+PacketBuffer *PacketBuffer::writeUShort(unsigned short value) {
     uint16_t networkValue = htons(value);
 
-    writeByte(networkValue & 0xFF);        // Low byte
+    writeByte(networkValue & 0xFF); // Low byte
     writeByte((networkValue >> 8) & 0xFF); // High byte
 
     return this;
 }
 
-PacketBuffer *PacketBuffer::writeString(std::string str)
-{
-    if (str.size() > 32767)
-    {
+PacketBuffer *PacketBuffer::writeString(const std::string &str) {
+    if (str.size() > 32767) {
         throw net_exception("the string is too large!");
     }
 
     this->writeVarInt(str.size());
-    for (size_t i = 0; i < str.size(); i++)
-    {
-        writeByte(str[i]);
+    for (const char c: str) {
+        writeByte(c);
     }
 
     return this;
 }
 
-std::string PacketBuffer::readString()
-{
+std::string PacketBuffer::readString() {
     int length = this->readVarInt();
 
-    if (length > 32767)
-    {
+    if (length > 32767) {
         throw net_exception("string too large!");
     }
 
     std::string str;
 
-    for (int i = 0; i < length; i++)
-    {
-        str += readByte();
+    for (int i = 0; i < length; i++) {
+        str += static_cast<char>(readByte());
     }
 
     return str;
 }
 
-size_t PacketBuffer::getSize()
-{
+size_t PacketBuffer::getSize() const {
     return this->vec.size();
 }
 
-std::vector<unsigned char> PacketBuffer::toBytes()
-{
+std::vector<unsigned char> PacketBuffer::toBytes() {
     return this->vec;
 }
