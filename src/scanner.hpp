@@ -10,6 +10,6 @@ void scanExtraIPs(Database *db, std::vector<unsigned int> &extraIPs);
 /**
  * Prints scanner progress periodically
  */
-void statsThread();
+[[noreturn]] void statsThread();
 
-void startScanner(Database *db);
+void startScanner(Database *db, long numThreads);
