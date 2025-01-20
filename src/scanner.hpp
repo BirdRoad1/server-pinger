@@ -1,5 +1,8 @@
 #pragma once
 #include "database.hpp"
+#include "logger.hpp"
+
+extern Logger* logger;
 
 void scanTask(Database *db, int ip);
 

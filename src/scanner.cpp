@@ -12,6 +12,7 @@
 #include "exception/net_exception.hpp"
 #include "exception/ping_parse_exception.hpp"
 #include <queue>
+#include "logger.hpp"
 #include "progress_writer.hpp"
 
 std::queue<CidrRange> ipQueue;
@@ -19,13 +20,12 @@ std::mutex mut;
 Stats stats;
 
 void scanTask(Database *db, const unsigned int ip) {
-    std::string ipStr = intToIp(ip);
-    std::string dataStr;
+    const std::string ipStr = intToIp(ip);
 
     try {
-        dataStr = pingServer(ipStr, 25565);
-        ServerData data = parseServerData(ipStr, 25565, dataStr);
-        std::cout << "Working:" << data.host << std::endl;
+        const std::string dataStr = pingServer(ipStr, 25565);
+        const ServerData data = parseServerData(ipStr, 25565, dataStr);
+        logger->info()->write("Working: ")->write(data.host)->end();
         db->insertServerData(data);
     } catch (net_exception &ex) {
         // std::cout << "Net exception: " << ex.what() << std::endl;
@@ -34,12 +34,12 @@ void scanTask(Database *db, const unsigned int ip) {
         // std::cout << "Ping parse exception: " << ex.what() << ", data: " << dataStr << std::endl;
     }
     catch (std::exception &ex) {
-        // std::cout << "Caught exception while checking server: " << ex.what() << std::endl;
+        logger->error()->write("Caught exception while checking server: ")->write(ex.what())->end();
     }
 
     // ProgressWriter::writeIP(ipStr);
     stats.setIpsDone(stats.getIpsDone() + 1);
-    stats.setPackets(stats.getPackets() + 10);
+    stats.setPackets(stats.getPackets() + 1);
 }
 
 void runThread(Database *db) {
@@ -52,12 +52,14 @@ void runThread(Database *db) {
             break;
         }
 
-        for (int i = 0; i < 50 && !ipQueue.empty(); i++) {
+        for (int i = 0; i < 100 && !ipQueue.empty(); i++) {
             batch.push_back(ipQueue.front());
             ipQueue.pop();
         }
 
         lock.unlock();
+
+        if (batch.empty()) break;
 
         for (CidrRange range: batch) {
             if (range.startIp == range.endIp) {
@@ -81,19 +83,20 @@ void runThread(Database *db) {
     while (true) {
         const long long ips = stats.getIpsDone();
         const long long total = stats.getIpsTotal();
-        const long long packets = stats.getPackets();
+        const long long packets = stats.getPackets() / 5;
         const long long threads = stats.getActiveThreads();
 
         const double fraction = total == 0
                                     ? -1
-                                    : static_cast<double>(stats.getIpsDone()) / static_cast<double>(stats.getIpsTotal())
-                                      * 100;
+                                    : static_cast<double>(stats.getIpsDone()) / static_cast<double>(stats.
+                                          getIpsTotal());
         stats.setPackets(0);
 
-        std::cout << std::fixed << std::setprecision(2) << "Done: " << ips << " / " << total << " (" << fraction <<
-                "%, " << packets << " PPS, " << threads << " threads)" << std::endl;
+        logger->info()->fixed()->setPrecision(2)->write("Done: ")->write(ips)->write(" / ")->write(total)->write(" (")->
+                write(fraction)->
+                write("%, ")->write(packets)->write(" CPS, ")->write(threads)->write(" threads)")->end();
 
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(5));
     }
 }
 
@@ -114,7 +117,7 @@ void handleFileLine(const std::string &line) {
         try {
             bitmask = std::stoi(bitmaskStr);
         } catch (std::exception &ex) {
-            std::cout << "Could not convert bitmask to int: " << ex.what() << std::endl;
+            logger->warn()->write("Could not convert bitmask to int: ")->write(ex.what())->end();
             return;
         }
 
@@ -126,12 +129,11 @@ void startScanner(Database *db, long numThreads) {
     // Read and parse CIDRs
     std::ifstream file("cidrs.txt");
     if (!file.good()) {
-        std::cout << "Failed to open cidrs.txt" << std::endl;
+        logger->error()->write("Failed to open cidrs.txt")->end();
         return;
     }
 
-    // std::vector<std::string> lines;
-
+    logger->info()->write("Reading IP addresses...")->end();
     std::string line;
     while (std::getline(file, line)) {
         handleFileLine(line);
@@ -140,8 +142,8 @@ void startScanner(Database *db, long numThreads) {
 
     std::vector<std::thread> threads;
 
-    std::cout << "Loaded " << ipQueue.size() << " IP addresses" << std::endl;
-    std::cout << "Starting in 3 seconds..." << std::endl;
+    logger->info()->write("Loaded ")->write(ipQueue.size())->write(" IP addresses")->end();
+    logger->info()->write("Starting in 3 seconds...")->end();
     std::this_thread::sleep_for(std::chrono::seconds(3));
 
     stats.setIpsTotal(ipQueue.size());
@@ -150,10 +152,10 @@ void startScanner(Database *db, long numThreads) {
     std::thread(statsThread).detach();
 
     for (long i = 0; i < numThreads; i++) {
-        threads.emplace_back(std::thread(runThread, db));
+        threads.emplace_back(runThread, db);
     }
 
-    std::cout << "Created " << threads.size() << " threads" << std::endl;
+    logger->info()->write("Created ")->write(threads.size())->write(" threads")->end();
     stats.setActiveThreads(threads.size());
 
     while (!threads.empty()) {
@@ -164,5 +166,5 @@ void startScanner(Database *db, long numThreads) {
     }
 
     ProgressWriter::close();
-    std::cout << "Done scanning!" << threads.size() << std::endl;
+    logger->info()->write("Done scanning!")->write(threads.size())->end();
 }

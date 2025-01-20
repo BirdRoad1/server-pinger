@@ -3,6 +3,10 @@
 #include "serverdata.hpp"
 #include <mutex>
 
+#include "logger.hpp"
+
+extern Logger* logger;
+
 class Database {
 private:
     std::mutex mutex;

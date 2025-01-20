@@ -2,22 +2,22 @@
 #include "database.hpp"
 #include <optional>
 #include <iostream>
-#include <signal.h>
+#include <csignal>
+#include "logger.hpp"
 
-int main(int argc, char *argv[])
-{
-    if (argc != 2)
-    {
-        std::cout << "Usage: mcpinger <threads>" << std::endl;
+Logger *logger = Logger::getLogger();
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        logger->error()->write("Usage: mcpinger <threads>")->end();
         return 1;
     }
 
     char *threadsStr = argv[1];
     char *endptr;
     long threads = strtol(threadsStr, &endptr, 10);
-    if (threadsStr == endptr || threads > 10000)
-    {
-        std::cout << "Invalid threads count" << std::endl;
+    if (threadsStr == endptr || threads > 10000) {
+        logger->error()->write("Invalid threads count")->end();
         return 1;
     }
 
@@ -26,20 +26,20 @@ int main(int argc, char *argv[])
 
     Database db;
 
-    if (!db.connect())
-    {
+    if (!db.connect()) {
         return 1;
     }
 
-    try
-    {
+    try {
         db.setupDatabase();
-    }
-    catch (std::exception &err)
-    {
-        std::cout << "Failed to setup database: " << err.what() << std::endl;
+    } catch (std::exception &err) {
+        logger->error()->write("Failed to setup database: ")->write(err.what())->end();
     }
 
     startScanner(&db, threads);
+
+    Logger::cleanup();
+    logger = nullptr;
+
     return 0;
 }
